@@ -9,12 +9,21 @@
 #define INC_SOFTWARE_TIMER_H_
 
 #include "main.h"
+#include "led7seg.h"
 
 extern uint16_t flag_timer2;
 
 void timer_init();
+
+// Function for set timer
 void setTimer2(uint16_t duration);
 void setFlagModifyTimer(uint16_t timer);
+void setBlinkLCDTimer(uint16_t duration);
+void setClockTimer(uint16_t duration);
+
+// Function for get flag
 uint16_t isFlagModify();
+uint8_t isBlinkLCD();
+uint8_t isClock();
 
 #endif /* INC_SOFTWARE_TIMER_H_ */

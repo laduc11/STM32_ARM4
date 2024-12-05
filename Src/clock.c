@@ -77,7 +77,16 @@ void setTimeInit()
 }
 
 /**
- * @brief Update time to IC RTC DS3231
+ * @brief Update time to IC RTC DS3231 (reduce form)
+ * 
+ */
+void updateTime()
+{
+	updateTimeFull(ds3231_sec, ds3231_min, ds3231_hours, ds3231_day,
+				   ds3231_date, ds3231_month, ds3231_year);
+}
+/**
+ * @brief Update time to IC RTC DS3231 (full form)
  * 
  * @param second 
  * @param minute 
@@ -87,13 +96,13 @@ void setTimeInit()
  * @param month 
  * @param year 
  */
-void updateTime(uint16_t second, 
-				uint16_t minute, 
-				uint16_t hours, 
-				uint16_t day, 
-				uint16_t date, 
-				uint16_t month, 
-				uint16_t year){
+void updateTimeFull(uint16_t second, 
+					uint16_t minute, 
+					uint16_t hours, 
+					uint16_t day, 
+					uint16_t date, 
+					uint16_t month, 
+					uint16_t year){
 	ds3231_Write(ADDRESS_YEAR, year);
 	ds3231_Write(ADDRESS_MONTH, month);
 	ds3231_Write(ADDRESS_DATE, date);
@@ -115,154 +124,41 @@ void clockFSM()
 	switch (clock_mode)
 	{
 	case WATCH_MODE:
-		if (button_count[11] == BUTTON_COUNT_PRESS) { // reduce noise
-			// Change mode
-			button_count[11] = 0;
-			clock_mode = SET_TIME_MODE;
-			displayTime();
-			setFlagModifyTimer(250);
-			break;
-		}
+		// Display time
 		ds3231_ReadTime();
 		displayTime();
-		checkAlart();
-		break;
-	case SET_TIME_MODE:
+		// check button state
 		if (button_count[11] == BUTTON_COUNT_PRESS) {
 			// Change mode
 			button_count[11] = 0;
-			clock_mode = ALARM_MODE;
-			displayTime();
+			clock_mode = SET_TIME_MODE;
+			setTimeInit();
+		} else {
+			checkAlarm();
 		}
-/*--------------------------------------------------------------------*/
-		// if (button_count[12] == 1) {
-		// 	// Change updated field
-		// 	button_count[12] = 0;
-		// 	modifyStatus = (modifyStatus + 1) % 7;
-		// }
-		// if (modifyStatus == 0) {
-		// 	if (isFlagModify() == 1) {
-		// 		toggle = 1 - toggle;
-		// 		if (toggle) {
-		// 			displayTime();
-		// 		}
-		// 		else {
-		// 			offSecond();
-		// 		}
-		// 	}
-		// 	if (button_count[3] == 1) {
-		// 		button_count[3] = 0;
-		// 		ds3231_sec++;
-		// 		checkTime();
-		// 	}
-		// }
-		// else if (modifyStatus == 1) {
-		// 	if (isFlagModify() == 1) {
-		// 		toggle = 1 - toggle;
-		// 		if (toggle) {
-		// 			displayTime();
-		// 		}
-		// 		else {
-		// 			offMinute();
-		// 		}
-		// 	}
-		// 	if (button_count[3] == 1) {
-		// 		button_count[3] = 0;
-		// 		ds3231_min++;
-		// 		checkTime();
-		// 	}
-		// }
-		// else if (modifyStatus == 2) {
-		// 	if (isFlagModify() == 1) {
-		// 		toggle = 1 - toggle;
-		// 		if (toggle) {
-		// 			displayTime();
-		// 		}
-		// 		else {
-		// 			offHour();
-		// 		}
-		// 	}
-		// 	if (button_count[3] == 1) {
-		// 		button_count[3] = 0;
-		// 		ds3231_hours++;
-		// 		checkTime();
-		// 	}
-		// }
-		// else if (modifyStatus == 3) {
-		// 	if (isFlagModify() == 1) {
-		// 		toggle = 1 - toggle;
-		// 		if (toggle) {
-		// 			displayTime();
-		// 		}
-		// 		else {
-		// 			offArticle();
-		// 		}
-		// 	}
-		// 	if (button_count[3] == 1) {
-		// 		button_count[3] = 0;
-		// 		ds3231_day++;
-		// 		checkTime();
-		// 	}
-		// }
-		// else if (modifyStatus == 4) {
-		// 	if (isFlagModify() == 1) {
-		// 		toggle = 1 - toggle;
-		// 		if (toggle) {
-		// 			displayTime();
-		// 		}
-		// 		else {
-		// 			offDay();
-		// 		}
-		// 	}
-		// 	if (button_count[3] == 1) {
-		// 		button_count[3] = 0;
-		// 		ds3231_date++;
-		// 		checkTime();
-		// 	}
-		// }
-		// else if (modifyStatus == 5) {
-		// 	if (isFlagModify() == 1) {
-		// 		toggle = 1 - toggle;
-		// 		if (toggle) {
-		// 			displayTime();
-		// 		}
-		// 		else {
-		// 			offMonth();
-		// 		}
-		// 	}
-		// 	if (button_count[3] == 1) {
-		// 		button_count[3] = 0;
-		// 		ds3231_month++;
-		// 		checkTime();
-		// 	}
-		// }
-		// else if (modifyStatus == 6) {
-		// 	if (isFlagModify() == 1) {
-		// 		toggle = 1 - toggle;
-		// 		if (toggle) {
-		// 			displayTime();
-		// 		}
-		// 		else {
-		// 			offYear();
-		// 		}
-		// 	}
-		// 	if (button_count[3] == 1) {
-		// 		button_count[3] = 0;
-		// 		ds3231_year++;
-		// 		checkTime();
-		// 	}
-		// }
-/*--------------------------------------------------------------------*/
+		break;
+	case SET_TIME_MODE:
+		displayTimeFull(sec_temp, min_temp, hour_temp, day_temp,
+						date_temp, month_temp, year_temp);
+		if (button_count[11] == BUTTON_COUNT_PRESS) {
+			// Update Time and Change mode
+			updateTime();
+			button_count[11] = 0;
+			clock_mode = ALARM_MODE;
+		} else {
+			setTimeFSM();
+		}
 		break;
 	case ALARM_MODE:
+		displayTimeFull(sec_temp, min_temp, hour_temp, day_temp,
+						date_temp, month_temp, year_temp);
 		if (button_count[11] == BUTTON_COUNT_PRESS) {
 			// Change mode
 			button_count[11] = 0;
 			clock_mode = WATCH_MODE;
-			lcd_Clear(BLACK);
-			// displayAlartTime(modeStatus);
+		} else {
+			setAlarmFSM();
 		}
-		setAlarmFSM();
 		break;
 	default:
 		break;
@@ -279,7 +175,8 @@ void setTimeFSM()
 	{
 	case MODIFY_SEC_STATE:
 		if (button_count[12] == BUTTON_COUNT_PRESS) {
-			// Reset button count and change state
+			// Save and change state to MINUTE
+			ds3231_sec = sec_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_MIN_STATE;
 		} else {
@@ -290,21 +187,96 @@ void setTimeFSM()
 		}
 		break;
 	case MODIFY_MIN_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to HOURS
+			ds3231_min = min_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_HOUR_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase minute
+				min_temp = (min_temp + 1) % 60;
+			}
+		}
 		break;
 	case MODIFY_HOUR_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to DAY
+			ds3231_hours = hour_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_DAY_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase minute
+				hour_temp = (hour_temp + 1) % 24;
+			}
+		}
 		break;
 	case MODIFY_DAY_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to DATE
+			ds3231_day = day_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_DATE_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase day
+				day_temp = (day_temp % 7) + 1;
+			}
+		}
 		break;
 	case MODIFY_DATE_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to MONTH
+			ds3231_date = date_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_MONTH_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase date
+				date_temp = (date_temp % 31) + 1;
+			}
+		}
 		break;
 	case MODIFY_MONTH_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to YEAR
+			ds3231_month = month_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_YEAR_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase month
+				month_temp = (month_temp % 12) + 1;
+			}
+		}
 		break;
 	case MODIFY_YEAR_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to SECOND
+			ds3231_year = year_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_SEC_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase year
+				year_temp = (year_temp % 12) + 1;
+			}
+		}
 		break;
 	
 	default:
 		break;
 	}
+}
+
+/**
+ * @brief Finite state machine for setting alarm
+ * 
+ */
+void setAlarmFSM()
+{
+
 }
 
 /**
@@ -315,67 +287,65 @@ void blinkTimeFSM()
 {
 	if (clock_mode == SET_TIME_MODE) {
 		switch (blink_mode) {
-			case TURN_OFF:
-				switch (set_time_mode) {
-				case MODIFY_SEC_STATE:
-					lcd_ShowIntNum(150, 190, ds3231_sec, 2, BLACK, BLACK, 24);
-					break;
-				case MODIFY_MIN_STATE:
-					lcd_ShowIntNum(100, 190, ds3231_min, 2, BLACK, BLACK, 24);
-					break;
-				case MODIFY_HOUR_STATE:
-					lcd_ShowIntNum(50, 190, ds3231_hours, 2, BLACK, BLACK, 24);
-					break;
-				case MODIFY_DAY_STATE:
-					lcd_ShowIntNum(10, 100, ds3231_day, 2, BLACK, BLACK, 24);
-					break;
-				case MODIFY_DATE_STATE:
-					lcd_ShowIntNum(60, 100, ds3231_date, 2, BLACK, BLACK, 24);
-					break;
-				case MODIFY_MONTH_STATE:
-					lcd_ShowIntNum(120, 100, ds3231_month, 2, BLACK, BLACK, 24);
-					break;
-				case MODIFY_YEAR_STATE:
-					lcd_ShowIntNum(180, 100, ds3231_year, 2, BLACK, BLACK, 24);
-					break;
-				default:
-					break;
-				}
-				blink_mode = TURN_ON;
+		case TURN_OFF:
+			switch (set_time_mode) {
+			case MODIFY_SEC_STATE:
+				lcd_ShowIntNum(150, 190, ds3231_sec, 2, BLACK, BLACK, 24);
 				break;
-			case TURN_ON:
-				switch (set_time_mode) {
-				case MODIFY_SEC_STATE:
-					lcd_ShowIntNum(150, 190, ds3231_sec, 2, YELLOW, BLACK, 24);
-					break;
-				case MODIFY_MIN_STATE:
-					lcd_ShowIntNum(100, 190, ds3231_min, 2, YELLOW, BLACK, 24);
-					break;
-				case MODIFY_HOUR_STATE:
-					lcd_ShowIntNum(50, 190, ds3231_hours, 2, YELLOW, BLACK, 24);
-					break;
-				case MODIFY_DAY_STATE:
-					lcd_ShowIntNum(10, 100, ds3231_day, 2, YELLOW, BLACK, 24);
-					break;
-				case MODIFY_DATE_STATE:
-					lcd_ShowIntNum(60, 100, ds3231_date, 2, YELLOW, BLACK, 24);
-					break;
-				case MODIFY_MONTH_STATE:
-					lcd_ShowIntNum(120, 100, ds3231_month, 2, YELLOW, BLACK, 24);
-					break;
-				case MODIFY_YEAR_STATE:
-					lcd_ShowIntNum(180, 100, ds3231_year, 2, YELLOW, BLACK, 24);
-					break;
-				default:
-					break;
-				}
-				blink_mode = TURN_OFF;
+			case MODIFY_MIN_STATE:
+				lcd_ShowIntNum(100, 190, ds3231_min, 2, BLACK, BLACK, 24);
 				break;
-			
+			case MODIFY_HOUR_STATE:
+				lcd_ShowIntNum(50, 190, ds3231_hours, 2, BLACK, BLACK, 24);
+				break;
+			case MODIFY_DAY_STATE:
+				lcd_ShowIntNum(10, 100, ds3231_day, 2, BLACK, BLACK, 24);
+				break;
+			case MODIFY_DATE_STATE:
+				lcd_ShowIntNum(60, 100, ds3231_date, 2, BLACK, BLACK, 24);
+				break;
+			case MODIFY_MONTH_STATE:
+				lcd_ShowIntNum(120, 100, ds3231_month, 2, BLACK, BLACK, 24);
+				break;
+			case MODIFY_YEAR_STATE:
+				lcd_ShowIntNum(180, 100, ds3231_year, 2, BLACK, BLACK, 24);
+				break;
 			default:
 				break;
+			}
+			blink_mode = TURN_ON;
+			break;
+		case TURN_ON:
+			switch (set_time_mode) {
+			case MODIFY_SEC_STATE:
+				lcd_ShowIntNum(150, 190, ds3231_sec, 2, YELLOW, BLACK, 24);
+				break;
+			case MODIFY_MIN_STATE:
+				lcd_ShowIntNum(100, 190, ds3231_min, 2, YELLOW, BLACK, 24);
+				break;
+			case MODIFY_HOUR_STATE:
+				lcd_ShowIntNum(50, 190, ds3231_hours, 2, YELLOW, BLACK, 24);
+				break;
+			case MODIFY_DAY_STATE:
+				lcd_ShowIntNum(10, 100, ds3231_day, 2, YELLOW, BLACK, 24);
+				break;
+			case MODIFY_DATE_STATE:
+				lcd_ShowIntNum(60, 100, ds3231_date, 2, YELLOW, BLACK, 24);
+				break;
+			case MODIFY_MONTH_STATE:
+				lcd_ShowIntNum(120, 100, ds3231_month, 2, YELLOW, BLACK, 24);
+				break;
+			case MODIFY_YEAR_STATE:
+				lcd_ShowIntNum(180, 100, ds3231_year, 2, YELLOW, BLACK, 24);
+				break;
+			default:
+				break;
+			}
+			blink_mode = TURN_OFF;
+			break;
+		default:
+			break;
 		}
-			
 	} 
 }
 

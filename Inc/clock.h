@@ -37,8 +37,10 @@ void clockInit();
 void alarmInit();
 void setTimeInit();
 void displayTime();
+void updateTime();
+
 void displayTimeFull(uint8_t second, uint8_t minute, uint8_t hours, uint8_t day, uint8_t date, uint8_t month, uint8_t year);
-void updateTime(uint16_t second, uint16_t minute, uint16_t hours, uint16_t day, uint16_t date, uint16_t month, uint16_t year);
+void updateTimeFull(uint16_t second, uint16_t minute, uint16_t hours, uint16_t day, uint16_t date, uint16_t month, uint16_t year);
 
 // General function of alarm
 void checkAlarm();

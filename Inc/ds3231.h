@@ -28,8 +28,7 @@ extern uint8_t ds3231_month;
 extern uint8_t ds3231_year;
 
 void ds3231_init();
-
 void ds3231_Write(uint8_t address, uint8_t value);
-
+void ds3231_ReadTime();
 
 #endif /* INC_DS3231_H_ */
