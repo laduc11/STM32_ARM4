@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "ringbuffer.h": "c",
+        "stdio.h": "c"
+    }
+}
