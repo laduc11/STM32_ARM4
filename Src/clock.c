@@ -16,7 +16,7 @@ uint8_t blink_mode; // mode = 0 (off); mode = 1 (on)
 // Alarm attribte
 uint8_t sec_alarm;
 uint8_t min_alarm;
-uint8_t hour_alarm;
+uint8_t hours_alarm;
 uint8_t date_alarm;
 uint8_t day_alarm;
 uint8_t month_alarm;
@@ -25,7 +25,7 @@ uint8_t year_alarm;
 // Time attribute temporary
 uint8_t sec_temp;
 uint8_t min_temp;
-uint8_t hour_temp;
+uint8_t hours_temp;
 uint8_t date_temp;
 uint8_t day_temp;
 uint8_t month_temp;
@@ -54,11 +54,13 @@ void alarmInit()
 {
 	sec_alarm = 0;
 	min_alarm = 0;
-	hour_alarm = 0;
+	hours_alarm = 0;
 	day_alarm = 0;
 	date_alarm = 0;
 	month_alarm = 0;
 	year_alarm = 0;
+
+	alarm_mode = MODIFY_SEC_STATE;
 }
 
 /**
@@ -69,11 +71,13 @@ void setTimeInit()
 {
 	sec_alarm = ds3231_sec;
 	min_alarm = ds3231_min;
-	hour_alarm = ds3231_hours;
+	hours_alarm = ds3231_hours;
 	day_alarm = ds3231_day;
 	date_alarm = ds3231_date;
 	month_alarm = ds3231_month;
 	year_alarm = ds3231_year;
+
+	set_time_mode = MODIFY_SEC_STATE;
 }
 
 /**
@@ -138,7 +142,7 @@ void clockFSM()
 		}
 		break;
 	case SET_TIME_MODE:
-		displayTimeFull(sec_temp, min_temp, hour_temp, day_temp,
+		displayTimeFull(sec_temp, min_temp, hours_temp, day_temp,
 						date_temp, month_temp, year_temp);
 		if (button_count[11] == BUTTON_COUNT_PRESS) {
 			// Update Time and Change mode
@@ -150,7 +154,7 @@ void clockFSM()
 		}
 		break;
 	case ALARM_MODE:
-		displayTimeFull(sec_temp, min_temp, hour_temp, day_temp,
+		displayTimeFull(sec_temp, min_temp, hours_temp, day_temp,
 						date_temp, month_temp, year_temp);
 		if (button_count[11] == BUTTON_COUNT_PRESS) {
 			// Change mode
@@ -202,13 +206,13 @@ void setTimeFSM()
 	case MODIFY_HOUR_STATE:
 		if (button_count[12] == BUTTON_COUNT_PRESS) {
 			// Save and change state to DAY
-			ds3231_hours = hour_temp;
+			ds3231_hours = hours_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_DAY_STATE;
 		} else {
 			if (button_count[3] == BUTTON_COUNT_PRESS) {
 				// Increase minute
-				hour_temp = (hour_temp + 1) % 24;
+				hours_temp = (hours_temp + 1) % 24;
 			}
 		}
 		break;
@@ -276,7 +280,103 @@ void setTimeFSM()
  */
 void setAlarmFSM()
 {
-
+	switch (alarm_mode)
+	{
+	case MODIFY_SEC_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to MINUTE
+			sec_alarm = sec_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_MIN_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase second
+				sec_temp = (sec_temp + 1) % 60;
+			}
+		}
+		break;
+	case MODIFY_MIN_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to HOURS
+			min_alarm = min_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_HOUR_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase minute
+				min_temp = (min_temp + 1) % 60;
+			}
+		}
+		break;
+	case MODIFY_HOUR_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to DAY
+			hours_alarm = hours_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_DAY_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase minute
+				hours_temp = (hours_temp + 1) % 24;
+			}
+		}
+		break;
+	case MODIFY_DAY_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to DATE
+			day_alarm = day_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_DATE_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase day
+				day_temp = (day_temp % 7) + 1;
+			}
+		}
+		break;
+	case MODIFY_DATE_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to MONTH
+			date_alarm = date_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_MONTH_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase date
+				date_temp = (date_temp % 31) + 1;
+			}
+		}
+		break;
+	case MODIFY_MONTH_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to YEAR
+			month_alarm = month_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_YEAR_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase month
+				month_temp = (month_temp % 12) + 1;
+			}
+		}
+		break;
+	case MODIFY_YEAR_STATE:
+		if (button_count[12] == BUTTON_COUNT_PRESS) {
+			// Save and change state to SECOND
+			year_alarm = year_temp;
+			button_count[12] = 0;
+			set_time_mode = MODIFY_SEC_STATE;
+		} else {
+			if (button_count[3] == BUTTON_COUNT_PRESS) {
+				// Increase year
+				year_temp = (year_temp % 12) + 1;
+			}
+		}
+		break;
+	
+	default:
+		break;
+	}
 }
 
 /**
@@ -357,7 +457,7 @@ void checkAlarm()
 {
 	if (ds3231_sec == sec_alarm &&
 		ds3231_min == min_alarm &&
-		ds3231_hours == hour_alarm &&
+		ds3231_hours == hours_alarm &&
 		ds3231_day == day_alarm &&
 		ds3231_date == date_alarm &&
 		ds3231_month == month_alarm &&
@@ -372,7 +472,7 @@ void checkAlarm()
  */
 void notifyAlarm() {
 	lcd_DrawCircle(120, 160, RED, 50, 1);
-	lcd_ShowStr(100, 160, "ALART", BLACK, RED, 24, 1);
+	lcd_ShowStr(100, 160, (uint8_t *)"ALART", BLACK, RED, 24, 1);
 }
 
 /**
@@ -394,24 +494,24 @@ void displayTimeFull(uint8_t second,
 					 uint8_t date, 
 					 uint8_t month, 
 					 uint8_t year) {
-	lcd_ShowStr(10, 70, "Thu", YELLOW, BLACK, 24, 1);
-	lcd_ShowStr(55, 70, "Ngay", YELLOW, BLACK, 24, 1);
-	lcd_ShowStr(110, 70, "Thang", YELLOW, BLACK, 24, 1);
-	lcd_ShowStr(180, 70, "Nam", YELLOW, BLACK, 24, 1);
+	lcd_ShowStr(10, 70, (uint8_t *)"Thu", YELLOW, BLACK, 24, 1);
+	lcd_ShowStr(55, 70, (uint8_t *)"Ngay", YELLOW, BLACK, 24, 1);
+	lcd_ShowStr(110, 70, (uint8_t *)"Thang", YELLOW, BLACK, 24, 1);
+	lcd_ShowStr(180, 70, (uint8_t *)"Nam", YELLOW, BLACK, 24, 1);
 
 	lcd_ShowIntNum(10, 100, day, 2, YELLOW, BLACK, 24);
 	lcd_ShowIntNum(60, 100, date, 2, YELLOW, BLACK, 24);
 	lcd_ShowIntNum(120, 100, month, 2, YELLOW, BLACK, 24);
 	lcd_ShowIntNum(180, 100, year, 2, YELLOW, BLACK, 24);
 
-	lcd_ShowStr(40, 160, "Gio", YELLOW, BLACK, 24, 1);
-	lcd_ShowStr(90, 160, "Phut", YELLOW, BLACK, 24, 1);
-	lcd_ShowStr(150, 160, "Giay", YELLOW, BLACK, 24, 1);
+	lcd_ShowStr(40, 160, (uint8_t *)"Gio", YELLOW, BLACK, 24, 1);
+	lcd_ShowStr(90, 160, (uint8_t *)"Phut", YELLOW, BLACK, 24, 1);
+	lcd_ShowStr(150, 160, (uint8_t *)"Giay", YELLOW, BLACK, 24, 1);
 
 	lcd_ShowIntNum(50, 190, hours, 2, GREEN, BLACK, 24);
 	lcd_ShowIntNum(100, 190, minute, 2, GREEN, BLACK, 24);
 	lcd_ShowIntNum(150, 190, second, 2, GREEN, BLACK, 24);
 
-	lcd_ShowStr(40, 250, "Mode: ", BLUE, BLACK, 24, 1);
+	lcd_ShowStr(40, 250, (uint8_t *)"Mode: ", BLUE, BLACK, 24, 1);
 	lcd_ShowIntNum(100, 250, clock_mode, 2, GREEN, BLACK, 24);
 }

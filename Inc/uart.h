@@ -9,8 +9,10 @@
 #define INC_UART_H_
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "main.h"
 #include "buffer.h"
+#include "lcd.h"
 
 void uart_init_rs232();
 void uart_Rs232SendString(uint8_t* str);

@@ -48,24 +48,24 @@ void uart_Rs232SendBytes(uint8_t* bytes, uint16_t size){
  */
 void uart_Rs232SendNum(uint32_t num){
 	if(num == 0){
-		uart_Rs232SendString("0");
+		uart_Rs232SendString((uint8_t *)"0");
 		return;
 	}
     uint8_t num_flag = 0;
     int i;
-	if(num < 0) uart_Rs232SendString("-");
+	if(num < 0) uart_Rs232SendString((uint8_t *)"-");
     for(i = 10; i > 0; i--)
     {
         if((num / mypow(10, i-1)) != 0)
         {
             num_flag = 1;
-            sprintf((void*)msg,"%d",num/mypow(10, i-1));
+            sprintf((void*)msg,"%ld",num/mypow(10, i-1));
             uart_Rs232SendString(msg);
         }
         else
         {
             if(num_flag != 0)
-            	uart_Rs232SendString("0");
+            	uart_Rs232SendString((uint8_t *)"0");
         }
         num %= mypow(10, i-1);
     }
@@ -80,7 +80,7 @@ void uart_Rs232SendNumPercent(uint32_t num)
 {
 	sprintf((void*)msg,"%ld",num/100);
     uart_Rs232SendString(msg);
-    uart_Rs232SendString(".");
+    uart_Rs232SendString((uint8_t *)".");
     sprintf((void*)msg,"%ld",num%100);
     uart_Rs232SendString(msg);
 }

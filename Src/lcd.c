@@ -17,18 +17,6 @@ void LCD_WR_REG(uint16_t reg) //
 	LCD->LCD_REG = reg;
 }
 
-void LCD_WR_DATA(uint16_t data)
-{
-	LCD->LCD_RAM = data;
-}
-
-uint16_t LCD_RD_DATA(void)
-{
-	__IO uint16_t ram;
-	ram = LCD->LCD_RAM;
-	return ram;
-}
-
 
 void lcd_AddressSet(uint16_t x1,uint16_t y1,uint16_t x2,uint16_t y2)
 {
@@ -83,16 +71,16 @@ uint16_t lcd_ReadPoint(uint16_t x,uint16_t y)
 void lcd_Clear(uint16_t color) //
 {
 	uint16_t i,j;
-	uint8_t buffer[2];
-	buffer[0] = color >> 8;
-	buffer[1] = color;
+	// uint8_t buffer[2];
+	// buffer[0] = color >> 8;
+	// buffer[1] = color;
 	lcd_AddressSet(0, 0, lcddev.width - 1, lcddev.height - 1);
 	for(i = 0; i < lcddev.width; i++)
 	{
 		for(j=0; j < lcddev.height; j++)
 		{
 			LCD_WR_DATA(color);
-//			sram_WriteBuffer(&buffer, (i*lcddev.width+j)*4, 2);
+			// sram_WriteBuffer(&buffer, (i*lcddev.width+j)*4, 2);
 		}
 	}
 }
@@ -507,15 +495,15 @@ void DrawTestPage(uint8_t *str)
 	lcd_Fill(0,0,lcddev.width,20,BLUE);
 	lcd_Fill(0,lcddev.height-20,lcddev.width,lcddev.height,BLUE);
 	lcd_StrCenter(0,2,str,WHITE,BLUE,16,1);
-	lcd_StrCenter(0,lcddev.height-18,"Test page",WHITE,BLUE,16,1);
+	lcd_StrCenter(0,lcddev.height-18,(uint8_t *)"Test page",WHITE,BLUE,16,1);
 	lcd_Fill(0,20,lcddev.width,lcddev.height-20,BLACK);
 }
 
 
 void lcd_Display(){
 	uint16_t i,j;
-	uint8_t buffer[2];
-	uint16_t send;
+	// uint8_t buffer[2];
+	uint16_t send = 0;
 	lcd_AddressSet(0,0,lcddev.width-1,lcddev.height-1);//ÉèÖÃÏÔÊ¾·¶Î§
 	for(i=0;i<lcddev.width;i++)
 	{
