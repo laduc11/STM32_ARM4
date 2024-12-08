@@ -72,7 +72,7 @@ void setFlagModifyTimer(uint16_t timer)
 }
 
 // Function for get flag
-uint16_t isFlagModify()
+uint8_t isFlagModify()
 {
 	if(flagModify == 1){
 		flagModify = 0;
@@ -99,6 +99,20 @@ uint8_t isClock()
 	return 0;
 }
 
+uint8_t isFlagTimer2()
+{
+	if (flag_timer2) {
+		flag_timer2 = 0;
+		return 1;
+	}
+	return 0;
+}
+
+/**
+ * @brief Callback for Timer Interrupt
+ * 
+ * @param htim 
+ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim->Instance == TIM2){
 		if (timer2_counter > 0){

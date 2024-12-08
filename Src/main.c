@@ -108,19 +108,21 @@ int main(void)
   /* USER CODE BEGIN 2 */
   system_init();  // Initialize all service
 
+  setTimer2(20);          // for button scan
+  setClockTimer(500);     // update clock every 500 ms
   setBlinkLCDTimer(250);  // blink LCD with frequency 2 Hz => Time period = 250 ms
 
   lcd_Clear(BLACK);
-  setTimer2(200);
-  ds3231_ReadTime();
-  updateTime(ds3231_sec, ds3231_min, ds3231_hours, ds3231_day, ds3231_date, ds3231_month, ds3231_year);
+  setStartChar('!');
+  setStopChar('#');
+  uart_Rs232SendString((uint8_t *)"Hello from STM32\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    displayTime();
+	  // displayTime();
     if (getBufSize() == 10) {
       uart_Rs232SendBytes(flushBuffer(), 10);
     }
@@ -132,6 +134,11 @@ int main(void)
     if (isBlinkLCD()) {
       blinkTimeFSM();
     }
+
+    if (isFlagTimer2()) {
+      button_Scan();
+    }
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -486,13 +493,14 @@ void system_init() {
   HAL_GPIO_WritePin(OUTPUT_Y0_GPIO_Port, OUTPUT_Y0_Pin, 0);
   HAL_GPIO_WritePin(OUTPUT_Y1_GPIO_Port, OUTPUT_Y1_Pin, 0);
   HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, 0);
-  
-  timer_init();   // Initialize software timer
-  led7_init();    // Initialize leg 7 segment
-  button_init();  // Initialize button
-  lcd_init();     // Initialize LCD monitor
-  ds3231_init();  // Initialize IC RTC DS3231
-  clockInit();    // Initialize clock
+
+  uart_init_rs232();  // Initialize UART
+  timer_init();       // Initialize software timer
+  led7_init();        // Initialize leg 7 segment
+  button_init();      // Initialize button
+  lcd_init();         // Initialize LCD monitor
+  ds3231_init();      // Initialize IC RTC DS3231
+  clockInit();        // Initialize clock
 }
 /* USER CODE END 4 */
 

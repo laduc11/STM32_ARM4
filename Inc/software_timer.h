@@ -22,8 +22,9 @@ void setBlinkLCDTimer(uint16_t duration);
 void setClockTimer(uint16_t duration);
 
 // Function for get flag
-uint16_t isFlagModify();
+uint8_t isFlagModify();
 uint8_t isBlinkLCD();
 uint8_t isClock();
+uint8_t isFlagTimer2();
 
 #endif /* INC_SOFTWARE_TIMER_H_ */

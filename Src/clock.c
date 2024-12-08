@@ -11,7 +11,8 @@
 uint8_t clock_mode;
 uint8_t set_time_mode;
 uint8_t alarm_mode;
-uint8_t blink_mode; // mode = 0 (off); mode = 1 (on)
+uint8_t blink_mode;
+uint8_t update_time_mode;
 
 // Alarm attribte
 uint8_t sec_alarm;
@@ -31,6 +32,10 @@ uint8_t day_temp;
 uint8_t month_temp;
 uint8_t year_temp;
 
+// Update time via UART
+uint8_t waiting_response;
+uint8_t is_update_complete = 0;
+
 /**
  * @brief Initialize clock
  * 
@@ -38,12 +43,16 @@ uint8_t year_temp;
 void clockInit()
 {
 	alarmInit();	// Initialize alarm attribute
-	
+
+	// Initialize time
+	updateTimeFull(16, 06, 07, 5, 5, 12, 24);
+
 	// Initialize mode
 	clock_mode = WATCH_MODE;
 	set_time_mode = MODIFY_SEC_STATE;
-	alarm_mode = 0;		// Uncomplete initialize
+	alarm_mode = MODIFY_SEC_STATE;
 	blink_mode = TURN_OFF;
+	update_time_mode = UPDATE_SEC;
 }
 
 /**
@@ -59,8 +68,6 @@ void alarmInit()
 	date_alarm = 0;
 	month_alarm = 0;
 	year_alarm = 0;
-
-	alarm_mode = MODIFY_SEC_STATE;
 }
 
 /**
@@ -76,8 +83,33 @@ void setTimeInit()
 	date_alarm = ds3231_date;
 	month_alarm = ds3231_month;
 	year_alarm = ds3231_year;
+}
 
-	set_time_mode = MODIFY_SEC_STATE;
+/**
+ * @brief Initialize attributes for updating time via UART
+ * 
+ */
+void Uart4ClockInit()
+{
+	waiting_response = 0;
+	is_update_complete = 0;
+	update_time_mode = UPDATE_SEC;
+	lcd_Clear(BLACK);
+	lcd_ShowStr(20, 160, (uint8_t *)"Updating Second...", YELLOW, BLACK, 24, 1);
+}
+
+/**
+ * @brief Return 1 when update time via UART completely
+ * 
+ * @return uint8_t 
+ */
+uint8_t isUpdateComplete()
+{
+	if (is_update_complete) {
+		is_update_complete = 0;
+		return 1;
+	}
+	return 0;
 }
 
 /**
@@ -100,13 +132,13 @@ void updateTime()
  * @param month 
  * @param year 
  */
-void updateTimeFull(uint16_t second, 
-					uint16_t minute, 
-					uint16_t hours, 
-					uint16_t day, 
-					uint16_t date, 
-					uint16_t month, 
-					uint16_t year){
+void updateTimeFull(uint8_t second, 
+					uint8_t minute, 
+					uint8_t hours, 
+					uint8_t day, 
+					uint8_t date, 
+					uint8_t month, 
+					uint8_t year){
 	ds3231_Write(ADDRESS_YEAR, year);
 	ds3231_Write(ADDRESS_MONTH, month);
 	ds3231_Write(ADDRESS_DATE, date);
@@ -125,6 +157,15 @@ void clockFSM()
 	// button_count[11]: ringt arrow
 	// button_count[3]: up arrow
 	// button_count[12]: E button
+	// button_count[14]: B button
+
+	// uart_Rs232SendString((uint8_t *)"Mode: ");
+	// uart_Rs232SendNum((uint32_t)clock_mode);
+	// uart_Rs232SendString((uint8_t *)"\n");
+	// uart_Rs232SendString((uint8_t *)"button 11: ");
+	// uart_Rs232SendNum((uint32_t)button_count[11]);
+	// uart_Rs232SendString((uint8_t *)"\n");
+
 	switch (clock_mode)
 	{
 	case WATCH_MODE:
@@ -132,11 +173,18 @@ void clockFSM()
 		ds3231_ReadTime();
 		displayTime();
 		// check button state
-		if (button_count[11] == BUTTON_COUNT_PRESS) {
+		if (button_count[11] >= BUTTON_COUNT_PRESS) {
 			// Change mode
 			button_count[11] = 0;
 			clock_mode = SET_TIME_MODE;
 			setTimeInit();
+			lcd_Clear(BLACK);
+		} else if (button_count[14] >= BUTTON_COUNT_PRESS) {
+			// Change mode to update time via UART
+			button_count[14] = 0;
+			clock_mode = UPDATE_TIME_VIA_UART;
+			Uart4ClockInit();
+			
 		} else {
 			checkAlarm();
 		}
@@ -144,7 +192,7 @@ void clockFSM()
 	case SET_TIME_MODE:
 		displayTimeFull(sec_temp, min_temp, hours_temp, day_temp,
 						date_temp, month_temp, year_temp);
-		if (button_count[11] == BUTTON_COUNT_PRESS) {
+		if (button_count[11] >= BUTTON_COUNT_PRESS) {
 			// Update Time and Change mode
 			updateTime();
 			button_count[11] = 0;
@@ -156,13 +204,23 @@ void clockFSM()
 	case ALARM_MODE:
 		displayTimeFull(sec_temp, min_temp, hours_temp, day_temp,
 						date_temp, month_temp, year_temp);
-		if (button_count[11] == BUTTON_COUNT_PRESS) {
+		if (button_count[11] >= BUTTON_COUNT_PRESS) {
 			// Change mode
 			button_count[11] = 0;
 			clock_mode = WATCH_MODE;
 		} else {
 			setAlarmFSM();
 		}
+		break;
+	case UPDATE_TIME_VIA_UART:
+		if (button_count[0] >= BUTTON_COUNT_PRESS || isUpdateComplete()) {
+			clock_mode = WATCH_MODE;
+			button_count[0] = 0;
+			lcd_Clear(BLACK);
+			updateTime();
+			break;
+		}
+		updateTimeViaUartFSM();
 		break;
 	default:
 		break;
@@ -178,93 +236,93 @@ void setTimeFSM()
 	switch (set_time_mode)
 	{
 	case MODIFY_SEC_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to MINUTE
 			ds3231_sec = sec_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_MIN_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase second
 				sec_temp = (sec_temp + 1) % 60;
 			}
 		}
 		break;
 	case MODIFY_MIN_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to HOURS
 			ds3231_min = min_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_HOUR_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase minute
 				min_temp = (min_temp + 1) % 60;
 			}
 		}
 		break;
 	case MODIFY_HOUR_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to DAY
 			ds3231_hours = hours_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_DAY_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase minute
 				hours_temp = (hours_temp + 1) % 24;
 			}
 		}
 		break;
 	case MODIFY_DAY_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to DATE
 			ds3231_day = day_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_DATE_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase day
 				day_temp = (day_temp % 7) + 1;
 			}
 		}
 		break;
 	case MODIFY_DATE_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to MONTH
 			ds3231_date = date_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_MONTH_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase date
 				date_temp = (date_temp % 31) + 1;
 			}
 		}
 		break;
 	case MODIFY_MONTH_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to YEAR
 			ds3231_month = month_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_YEAR_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase month
 				month_temp = (month_temp % 12) + 1;
 			}
 		}
 		break;
 	case MODIFY_YEAR_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to SECOND
 			ds3231_year = year_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_SEC_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase year
-				year_temp = (year_temp % 12) + 1;
+				year_temp = (year_temp % 99) + 1;
 			}
 		}
 		break;
@@ -283,93 +341,93 @@ void setAlarmFSM()
 	switch (alarm_mode)
 	{
 	case MODIFY_SEC_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to MINUTE
 			sec_alarm = sec_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_MIN_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase second
 				sec_temp = (sec_temp + 1) % 60;
 			}
 		}
 		break;
 	case MODIFY_MIN_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to HOURS
 			min_alarm = min_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_HOUR_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase minute
 				min_temp = (min_temp + 1) % 60;
 			}
 		}
 		break;
 	case MODIFY_HOUR_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to DAY
 			hours_alarm = hours_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_DAY_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase minute
 				hours_temp = (hours_temp + 1) % 24;
 			}
 		}
 		break;
 	case MODIFY_DAY_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to DATE
 			day_alarm = day_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_DATE_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase day
 				day_temp = (day_temp % 7) + 1;
 			}
 		}
 		break;
 	case MODIFY_DATE_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to MONTH
 			date_alarm = date_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_MONTH_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase date
 				date_temp = (date_temp % 31) + 1;
 			}
 		}
 		break;
 	case MODIFY_MONTH_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to YEAR
 			month_alarm = month_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_YEAR_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase month
 				month_temp = (month_temp % 12) + 1;
 			}
 		}
 		break;
 	case MODIFY_YEAR_STATE:
-		if (button_count[12] == BUTTON_COUNT_PRESS) {
+		if (button_count[12] >= BUTTON_COUNT_PRESS) {
 			// Save and change state to SECOND
 			year_alarm = year_temp;
 			button_count[12] = 0;
 			set_time_mode = MODIFY_SEC_STATE;
 		} else {
-			if (button_count[3] == BUTTON_COUNT_PRESS) {
+			if (button_count[3] >= BUTTON_COUNT_PRESS) {
 				// Increase year
-				year_temp = (year_temp % 12) + 1;
+				year_temp = (year_temp % 99) + 1;
 			}
 		}
 		break;
@@ -385,30 +443,30 @@ void setAlarmFSM()
  */
 void blinkTimeFSM()
 {
-	if (clock_mode == SET_TIME_MODE) {
+	if (clock_mode == SET_TIME_MODE || clock_mode == ALARM_MODE) {
 		switch (blink_mode) {
 		case TURN_OFF:
 			switch (set_time_mode) {
 			case MODIFY_SEC_STATE:
-				lcd_ShowIntNum(150, 190, ds3231_sec, 2, BLACK, BLACK, 24);
+				lcd_ShowIntNum(150, 190, sec_temp, 2, BLACK, BLACK, 24);
 				break;
 			case MODIFY_MIN_STATE:
-				lcd_ShowIntNum(100, 190, ds3231_min, 2, BLACK, BLACK, 24);
+				lcd_ShowIntNum(100, 190, min_temp, 2, BLACK, BLACK, 24);
 				break;
 			case MODIFY_HOUR_STATE:
-				lcd_ShowIntNum(50, 190, ds3231_hours, 2, BLACK, BLACK, 24);
+				lcd_ShowIntNum(50, 190, hours_temp, 2, BLACK, BLACK, 24);
 				break;
 			case MODIFY_DAY_STATE:
-				lcd_ShowIntNum(10, 100, ds3231_day, 2, BLACK, BLACK, 24);
+				lcd_ShowIntNum(10, 100, day_temp, 2, BLACK, BLACK, 24);
 				break;
 			case MODIFY_DATE_STATE:
-				lcd_ShowIntNum(60, 100, ds3231_date, 2, BLACK, BLACK, 24);
+				lcd_ShowIntNum(60, 100, date_temp, 2, BLACK, BLACK, 24);
 				break;
 			case MODIFY_MONTH_STATE:
-				lcd_ShowIntNum(120, 100, ds3231_month, 2, BLACK, BLACK, 24);
+				lcd_ShowIntNum(120, 100, month_temp, 2, BLACK, BLACK, 24);
 				break;
 			case MODIFY_YEAR_STATE:
-				lcd_ShowIntNum(180, 100, ds3231_year, 2, BLACK, BLACK, 24);
+				lcd_ShowIntNum(180, 100, year_temp, 2, BLACK, BLACK, 24);
 				break;
 			default:
 				break;
@@ -418,25 +476,25 @@ void blinkTimeFSM()
 		case TURN_ON:
 			switch (set_time_mode) {
 			case MODIFY_SEC_STATE:
-				lcd_ShowIntNum(150, 190, ds3231_sec, 2, YELLOW, BLACK, 24);
+				lcd_ShowIntNum(150, 190, sec_temp, 2, GREEN, BLACK, 24);
 				break;
 			case MODIFY_MIN_STATE:
-				lcd_ShowIntNum(100, 190, ds3231_min, 2, YELLOW, BLACK, 24);
+				lcd_ShowIntNum(100, 190, min_temp, 2, GREEN, BLACK, 24);
 				break;
 			case MODIFY_HOUR_STATE:
-				lcd_ShowIntNum(50, 190, ds3231_hours, 2, YELLOW, BLACK, 24);
+				lcd_ShowIntNum(50, 190, hours_temp, 2, GREEN, BLACK, 24);
 				break;
 			case MODIFY_DAY_STATE:
-				lcd_ShowIntNum(10, 100, ds3231_day, 2, YELLOW, BLACK, 24);
+				lcd_ShowIntNum(10, 100, day_temp, 2, YELLOW, BLACK, 24);
 				break;
 			case MODIFY_DATE_STATE:
-				lcd_ShowIntNum(60, 100, ds3231_date, 2, YELLOW, BLACK, 24);
+				lcd_ShowIntNum(60, 100, date_temp, 2, YELLOW, BLACK, 24);
 				break;
 			case MODIFY_MONTH_STATE:
-				lcd_ShowIntNum(120, 100, ds3231_month, 2, YELLOW, BLACK, 24);
+				lcd_ShowIntNum(120, 100, month_temp, 2, YELLOW, BLACK, 24);
 				break;
 			case MODIFY_YEAR_STATE:
-				lcd_ShowIntNum(180, 100, ds3231_year, 2, YELLOW, BLACK, 24);
+				lcd_ShowIntNum(180, 100, year_temp, 2, YELLOW, BLACK, 24);
 				break;
 			default:
 				break;
@@ -447,6 +505,259 @@ void blinkTimeFSM()
 			break;
 		}
 	} 
+}
+
+
+/**
+ * @brief Finite State Machine for Updating Time Via UART 
+ * 
+ */
+void updateTimeViaUartFSM()
+{
+	switch (update_time_mode)
+	{
+	case UPDATE_SEC:
+		if (waiting_response) {
+			if (isMsgStop() == READING_COMPLETE_STATE) {
+				uint8_t start = 0;
+				uint16_t size = getBufSize();
+				uint8_t *buffer = flushBuffer();
+
+				getMsg(buffer, &size, &start);
+				if (size > 0) {
+					uint8_t *msg = malloc(size * sizeof(uint8_t) + 1);
+					for (uint16_t i = 0; i < size; ++i) {
+						msg[i] = buffer[start + i];
+					}
+					msg[size] = '\0';
+
+					// Save second and change state
+					ds3231_sec = (uint8_t)atoi((char *)msg) % 60;
+					update_time_mode = UPDATE_MIN;
+					waiting_response = 0;
+					lcd_Clear(BLACK);
+					lcd_ShowStr(20, 160, (uint8_t *)"Updating Minute...", YELLOW, BLACK, 24, 1);
+
+					uart_Rs232SendString((uint8_t *)"second = ");
+					uart_Rs232SendNum((uint32_t)ds3231_sec);
+					uart_Rs232SendString((uint8_t *)"\n");
+					free(msg);
+				}
+			}
+		} else {
+			uart_Rs232SendString((uint8_t *)"!second#");
+			waiting_response = 1;
+		}
+		break;
+	case UPDATE_MIN:
+		if (waiting_response) {
+			if (isMsgStop() == READING_COMPLETE_STATE) {
+				uint8_t start = 0;
+				uint16_t size = getBufSize();
+				uint8_t *buffer = flushBuffer();
+
+				getMsg(buffer, &size, &start);
+				if (size > 0) {
+					uint8_t *msg = malloc(size * sizeof(uint8_t) + 1);
+					for (uint16_t i = 0; i < size; ++i) {
+						msg[i] = buffer[start + i];
+					}
+					msg[size] = '\0';
+
+					// Save second and change state
+					ds3231_min = (uint8_t)atoi((char *)msg) % 60;
+					update_time_mode = UPDATE_HOURS;
+					waiting_response = 0;
+					lcd_Clear(BLACK);
+					lcd_ShowStr(20, 160, (uint8_t *)"Updating Hous...", YELLOW, BLACK, 24, 1);
+
+					uart_Rs232SendString((uint8_t *)"minute = ");
+					uart_Rs232SendNum((uint32_t)ds3231_min);
+					uart_Rs232SendString((uint8_t *)"\n");
+					free(msg);
+				}
+			}
+		} else {
+			uart_Rs232SendString((uint8_t *)"!minute#");
+			waiting_response = 1;
+		}
+		break;
+	case UPDATE_HOURS:
+		if (waiting_response) {
+			if (isMsgStop() == READING_COMPLETE_STATE) {
+				uint8_t start = 0;
+				uint16_t size = getBufSize();
+				uint8_t *buffer = flushBuffer();
+
+				getMsg(buffer, &size, &start);
+				if (size > 0) {
+					uint8_t *msg = malloc(size * sizeof(uint8_t) + 1);
+					for (uint16_t i = 0; i < size; ++i) {
+						msg[i] = buffer[start + i];
+					}
+					msg[size] = '\0';
+
+					// Save second and change state
+					ds3231_hours = (uint8_t)atoi((char *)msg) % 24;
+					update_time_mode = UPDATE_DAY;
+					waiting_response = 0;
+					lcd_Clear(BLACK);
+					lcd_ShowStr(20, 160, (uint8_t *)"Updating Day...", YELLOW, BLACK, 24, 1);
+
+					uart_Rs232SendString((uint8_t *)"hours = ");
+					uart_Rs232SendNum((uint32_t)ds3231_hours);
+					uart_Rs232SendString((uint8_t *)"\n");
+					free(msg);
+				}
+			}
+		} else {
+			uart_Rs232SendString((uint8_t *)"!hours#");
+			waiting_response = 1;
+		}
+		break;
+	case UPDATE_DAY:
+		if (waiting_response) {
+			if (isMsgStop() == READING_COMPLETE_STATE) {
+				uint8_t start = 0;
+				uint16_t size = getBufSize();
+				uint8_t *buffer = flushBuffer();
+
+				getMsg(buffer, &size, &start);
+				if (size > 0) {
+					uint8_t *msg = malloc(size * sizeof(uint8_t) + 1);
+					for (uint16_t i = 0; i < size; ++i) {
+						msg[i] = buffer[start + i];
+					}
+					msg[size] = '\0';
+
+					// Save second and change state
+					ds3231_day = (uint8_t)atoi((char *)msg) % 7;
+					if (ds3231_day == 0) {
+						ds3231_day = 7;
+					}
+					update_time_mode = UPDATE_DATE;
+					waiting_response = 0;
+					lcd_Clear(BLACK);
+					lcd_ShowStr(20, 160, (uint8_t *)"Updating Date...", YELLOW, BLACK, 24, 1);
+
+					uart_Rs232SendString((uint8_t *)"day = ");
+					uart_Rs232SendNum((uint32_t)ds3231_day);
+					uart_Rs232SendString((uint8_t *)"\n");
+					free(msg);
+				}
+			}
+		} else {
+			uart_Rs232SendString((uint8_t *)"!day#");
+			waiting_response = 1;
+		}
+		break;
+	case UPDATE_DATE:
+		if (waiting_response) {
+			if (isMsgStop() == READING_COMPLETE_STATE) {
+				uint8_t start = 0;
+				uint16_t size = getBufSize();
+				uint8_t *buffer = flushBuffer();
+
+				getMsg(buffer, &size, &start);
+				if (size > 0) {
+					uint8_t *msg = malloc(size * sizeof(uint8_t) + 1);
+					for (uint16_t i = 0; i < size; ++i) {
+						msg[i] = buffer[start + i];
+					}
+					msg[size] = '\0';
+
+					// Save second and change state
+					ds3231_date = (uint8_t)atoi((char *)msg) % 31;
+					if (ds3231_date == 0) {
+						ds3231_date = 31;
+					}
+					update_time_mode = UPDATE_MONTH;
+					waiting_response = 0;
+					lcd_Clear(BLACK);
+					lcd_ShowStr(20, 160, (uint8_t *)"Updating Month...", YELLOW, BLACK, 24, 1);
+
+					uart_Rs232SendString((uint8_t *)"date = ");
+					uart_Rs232SendNum((uint32_t)ds3231_sec);
+					uart_Rs232SendString((uint8_t *)"\n");
+					free(msg);
+				}
+			}
+		} else {
+			uart_Rs232SendString((uint8_t *)"!date#");
+			waiting_response = 1;
+		}
+		break;
+	case UPDATE_MONTH:
+		if (waiting_response) {
+			if (isMsgStop() == READING_COMPLETE_STATE) {
+				uint8_t start = 0;
+				uint16_t size = getBufSize();
+				uint8_t *buffer = flushBuffer();
+
+				getMsg(buffer, &size, &start);
+				if (size > 0) {
+					uint8_t *msg = malloc(size * sizeof(uint8_t) + 1);
+					for (uint16_t i = 0; i < size; ++i) {
+						msg[i] = buffer[start + i];
+					}
+					msg[size] = '\0';
+
+					// Save second and change state
+					ds3231_month = (uint8_t)atoi((char *)msg) % 12;
+					if (ds3231_month == 0) {
+						ds3231_month = 12;
+					}
+					update_time_mode = UPDATE_YEAR;
+					waiting_response = 0;
+					lcd_Clear(BLACK);
+					lcd_ShowStr(20, 160, (uint8_t *)"Updating Year...", YELLOW, BLACK, 24, 1);
+
+					uart_Rs232SendString((uint8_t *)"month = ");
+					uart_Rs232SendNum((uint32_t)ds3231_month);
+					uart_Rs232SendString((uint8_t *)"\n");
+					free(msg);
+				}
+			}
+		} else {
+			uart_Rs232SendString((uint8_t *)"!month#");
+			waiting_response = 1;
+		}
+		break;
+	case UPDATE_YEAR:
+		if (waiting_response) {
+			if (isMsgStop() == READING_COMPLETE_STATE) {
+				uint8_t start = 0;
+				uint16_t size = getBufSize();
+				uint8_t *buffer = flushBuffer();
+
+				getMsg(buffer, &size, &start);
+				if (size > 0) {
+					uint8_t *msg = malloc(size * sizeof(uint8_t) + 1);
+					for (uint16_t i = 0; i < size; ++i) {
+						msg[i] = buffer[start + i];
+					}
+					msg[size] = '\0';
+
+					// Save second and change state
+					ds3231_year = (uint8_t)atoi((char *)msg) % 100;
+					lcd_Clear(BLACK);
+					is_update_complete = 1;	// Special case when time is updated conpletely
+
+					uart_Rs232SendString((uint8_t *)"year = ");
+					uart_Rs232SendNum((uint32_t)ds3231_year);
+					uart_Rs232SendString((uint8_t *)"\n");
+					free(msg);
+				}
+			}
+		} else {
+			uart_Rs232SendString((uint8_t *)"!year#");
+			waiting_response = 1;
+		}
+		break;
+	
+	default:
+		break;
+	}
 }
 
 /**
@@ -502,7 +813,7 @@ void displayTimeFull(uint8_t second,
 	lcd_ShowIntNum(10, 100, day, 2, YELLOW, BLACK, 24);
 	lcd_ShowIntNum(60, 100, date, 2, YELLOW, BLACK, 24);
 	lcd_ShowIntNum(120, 100, month, 2, YELLOW, BLACK, 24);
-	lcd_ShowIntNum(180, 100, year, 2, YELLOW, BLACK, 24);
+	lcd_ShowIntNum(180, 100, year + 2000, 2, YELLOW, BLACK, 24);
 
 	lcd_ShowStr(40, 160, (uint8_t *)"Gio", YELLOW, BLACK, 24, 1);
 	lcd_ShowStr(90, 160, (uint8_t *)"Phut", YELLOW, BLACK, 24, 1);

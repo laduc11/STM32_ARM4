@@ -68,7 +68,7 @@ uint16_t lcd_ReadPoint(uint16_t x,uint16_t y)
 }
 
 
-void lcd_Clear(uint16_t color) //
+void lcd_Clear(uint16_t color)
 {
 	uint16_t i,j;
 	// uint8_t buffer[2];
