@@ -34,7 +34,9 @@ uint8_t year_temp;
 
 // Update time via UART
 uint8_t waiting_response;
-uint8_t is_update_complete = 0;
+uint8_t is_update_complete;
+uint8_t timeout_update;
+uint8_t counter_update;
 
 /**
  * @brief Initialize clock
@@ -53,6 +55,15 @@ void clockInit()
 	alarm_mode = MODIFY_SEC_STATE;
 	blink_mode = TURN_OFF;
 	update_time_mode = UPDATE_SEC;
+
+	// Initialize temparary variable
+	sec_temp = 0;
+	min_temp = 0;
+	hours_temp = 0;
+	date_temp = 0;
+	day_temp = 0;
+	month_temp = 0;
+	year_temp = 0;
 }
 
 /**
@@ -76,13 +87,13 @@ void alarmInit()
  */
 void setTimeInit()
 {
-	sec_alarm = ds3231_sec;
-	min_alarm = ds3231_min;
-	hours_alarm = ds3231_hours;
-	day_alarm = ds3231_day;
-	date_alarm = ds3231_date;
-	month_alarm = ds3231_month;
-	year_alarm = ds3231_year;
+	sec_temp = ds3231_sec;
+	min_temp = ds3231_min;
+	hours_temp = ds3231_hours;
+	day_temp = ds3231_day;
+	date_temp = ds3231_date;
+	month_temp = ds3231_month;
+	year_temp = ds3231_year;
 }
 
 /**
@@ -93,6 +104,8 @@ void Uart4ClockInit()
 {
 	waiting_response = 0;
 	is_update_complete = 0;
+	counter_update = MAX_COUNTER;
+	timeout_update = 1000 * TIMEOUT / PERIOD;
 	update_time_mode = UPDATE_SEC;
 	lcd_Clear(BLACK);
 	lcd_ShowStr(20, 160, (uint8_t *)"Updating Second...", YELLOW, BLACK, 24, 1);
@@ -158,14 +171,6 @@ void clockFSM()
 	// button_count[3]: up arrow
 	// button_count[12]: E button
 	// button_count[14]: B button
-
-	// uart_Rs232SendString((uint8_t *)"Mode: ");
-	// uart_Rs232SendNum((uint32_t)clock_mode);
-	// uart_Rs232SendString((uint8_t *)"\n");
-	// uart_Rs232SendString((uint8_t *)"button 11: ");
-	// uart_Rs232SendNum((uint32_t)button_count[11]);
-	// uart_Rs232SendString((uint8_t *)"\n");
-
 	switch (clock_mode)
 	{
 	case WATCH_MODE:
@@ -184,7 +189,6 @@ void clockFSM()
 			button_count[14] = 0;
 			clock_mode = UPDATE_TIME_VIA_UART;
 			Uart4ClockInit();
-			
 		} else {
 			checkAlarm();
 		}
@@ -197,6 +201,7 @@ void clockFSM()
 			updateTime();
 			button_count[11] = 0;
 			clock_mode = ALARM_MODE;
+			setTimeInit();
 		} else {
 			setTimeFSM();
 		}
@@ -514,6 +519,29 @@ void blinkTimeFSM()
  */
 void updateTimeViaUartFSM()
 {
+	if (update_time_mode != UPDATE_FAIL) {
+		// Check timeout for update time
+		if (counter_update == 0) {
+			timeout_update = 1 * 1000 / PERIOD;		// Display error message within 1 sec
+			update_time_mode = UPDATE_FAIL;
+			lcd_Clear(BLACK);
+			return;
+		}
+		if (timeout_update > 0) {
+			timeout_update--;
+		} else {
+			counter_update--;
+			timeout_update = 1000 * TIMEOUT / PERIOD;
+		}
+	} else {
+		// Check timeout for showing error message
+		if (timeout_update > 0) {
+			timeout_update--;
+		} else {
+			timeout_update = TIMEOUT * 1000 / PERIOD;
+			clock_mode = WATCH_MODE;
+		}
+	}
 	switch (update_time_mode)
 	{
 	case UPDATE_SEC:
@@ -754,7 +782,9 @@ void updateTimeViaUartFSM()
 			waiting_response = 1;
 		}
 		break;
-	
+	case UPDATE_FAIL:
+		lcd_ShowStr(20, 160, (uint8_t *)"Update Time Fail", YELLOW, BLACK, 24, 1);
+		break;
 	default:
 		break;
 	}

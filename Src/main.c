@@ -109,7 +109,7 @@ int main(void)
   system_init();  // Initialize all service
 
   setTimer2(20);          // for button scan
-  setClockTimer(500);     // update clock every 500 ms
+  setClockTimer(PERIOD);     // update clock every 500 ms
   setBlinkLCDTimer(250);  // blink LCD with frequency 2 Hz => Time period = 250 ms
 
   lcd_Clear(BLACK);

@@ -44,6 +44,10 @@
 #define UPDATE_DATE     4
 #define UPDATE_MONTH    5
 #define UPDATE_YEAR     6
+#define UPDATE_FAIL     7
+#define MAX_COUNTER     3
+#define TIMEOUT         10  // unit: s
+#define PERIOD          500 // unit: ms
 
 // General function of clock
 void clockInit();
