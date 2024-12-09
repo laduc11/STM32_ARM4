@@ -1,0 +1,10 @@
+software_timer.c:30:6:timer_init	8	static
+software_timer.c:39:6:setTimer2	16	static
+software_timer.c:50:6:setBlinkLCDTimer	16	static
+software_timer.c:62:6:setClockTimer	16	static
+software_timer.c:69:6:setFlagModifyTimer	16	static
+software_timer.c:75:9:isFlagModify	4	static
+software_timer.c:84:9:isBlinkLCD	4	static
+software_timer.c:93:9:isClock	4	static
+software_timer.c:102:9:isFlagTimer2	4	static
+software_timer.c:116:6:HAL_TIM_PeriodElapsedCallback	16	static
