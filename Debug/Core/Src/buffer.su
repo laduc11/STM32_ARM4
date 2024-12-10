@@ -1,0 +1,11 @@
+buffer.c:22:6:initBuffer	4	static
+buffer.c:38:9:pushBuffer	16	static
+buffer.c:61:9:popBuffer	4	static
+buffer.c:76:10:frontBuffer	4	static
+buffer.c:89:10:flushBuffer	16	static
+buffer.c:110:10:getBufSize	4	static
+buffer.c:118:6:clearBuffer	8	static
+buffer.c:127:6:setStartChar	16	static
+buffer.c:137:6:setStopChar	16	static
+buffer.c:147:9:isMsgStop	4	static
+buffer.c:159:6:getMsg	32	static

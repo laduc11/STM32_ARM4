@@ -1,0 +1,16 @@
+clock.c:45:6:clockInit	24	static
+clock.c:73:6:alarmInit	4	static
+clock.c:88:6:setTimeInit	4	static
+clock.c:103:6:Uart4ClockInit	24	static
+clock.c:119:9:isUpdateComplete	4	static
+clock.c:132:6:updateTime	40	static
+clock.c:148:6:updateTimeFull	24	static
+clock.c:168:6:clockFSM	40	static
+clock.c:239:6:setTimeFSM	4	static
+clock.c:344:6:setAlarmFSM	4	static
+clock.c:449:6:blinkTimeFSM	24	static
+clock.c:520:6:updateTimeViaUartFSM	128	static
+clock.c:797:6:checkAlarm	8	static
+clock.c:814:6:notifyAlarm	24	static
+clock.c:823:6:displayTime	40	static
+clock.c:831:6:displayTimeFull	40	static
