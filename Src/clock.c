@@ -531,6 +531,7 @@ void updateTimeViaUartFSM()
 			timeout_update--;
 		} else {
 			counter_update--;
+			waiting_response = 0;
 			timeout_update = 1000 * TIMEOUT / PERIOD;
 		}
 	} else {
@@ -539,7 +540,9 @@ void updateTimeViaUartFSM()
 			timeout_update--;
 		} else {
 			timeout_update = TIMEOUT * 1000 / PERIOD;
+			lcd_Clear(BLACK);
 			clock_mode = WATCH_MODE;
+			return;
 		}
 	}
 	switch (update_time_mode)
